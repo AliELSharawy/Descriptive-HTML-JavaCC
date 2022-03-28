@@ -1,0 +1,282 @@
+PARSER_BEGIN(Dsl)
+package egtry.dsl;
+import java.io.StringReader;
+import java.util.Scanner;
+
+
+public class Dsl {
+
+	private static String tagType = "";
+	private static String src = "";
+	private static String fontFamily = "";
+	private static String content = "";
+	private static String colorStr = "";
+	private static String href = "";
+	private static int occurrencesOfAnd = 0;
+	public static boolean status = false;
+
+  	
+    public static void main(String[] args) throws Exception {
+
+    
+	    Scanner scanner = new Scanner(System.in);
+	    String string = scanner.nextLine();
+		String[] words = string.split(" ");
+		String word = "AND";
+		for (int i=0; i<words.length; i++) { 
+	    	if (words[i].equals(word))
+	        	occurrencesOfAnd++;
+	    }
+		Dsl dsl = new Dsl(new StringReader(string));
+		try {
+		  dsl.parse();
+		} catch(Exception e) {
+		     status = true;
+		}
+	    
+	    HtmlTagsFactory htmlTagsFactory = new HtmlTagsFactory(dsl.tagType, dsl.src, dsl.fontFamily,
+	     dsl.content, dsl.colorStr, dsl.href);
+	    System.out.println(htmlTagsFactory.createTag());
+    }
+    
+}
+
+PARSER_END(Dsl)
+
+
+
+SKIP:
+{
+  	" "
+   | "\t"
+   | "\r"
+   | "\n"
+}
+
+TOKEN:
+{
+	<ALPHANUMERIC: (["0"-"9", "A"-"Z", "a"-"z", ":", ".", "_", "/"])>
+	| <QUOTE: "\"">
+}
+
+TOKEN:
+{
+  	<ADD: "ADD">
+ | 	<IMAGE: "IMAGE">
+ | 	<SOURCE: "SOURCE">
+ |  <WITH: "WITH">
+ | 	<HEADING: "HEADING">
+ | 	<PARAGRAPH: "PARAGRAPH"> 
+ | 	<LINK: "LINK">
+ |  <AND: "AND">
+ | 	<TEXT: "TEXT">
+ | 	<COLOR: "COLOR">
+ |  <FONT: "FONT">
+  	
+}
+
+void parse() :
+{
+  Token t = null;
+  String s = "";
+}
+{
+  <ADD>
+ (      img()
+   {
+    tagType = "img";
+    }
+ |
+   paragraph()
+   {
+    tagType = "p";
+    }
+    
+  |
+	header()   
+	{
+	 tagType = "h1";
+	}
+  |
+	url()
+	{
+	  tagType = "a";
+	}
+   ) 
+    
+ 
+  
+ 
+}
+
+String sentence() :
+{
+  Token t = null;
+  String s = "";
+}
+{
+
+  <QUOTE>(
+    t = <ALPHANUMERIC>
+    {s += t.image;}
+    )+
+   <QUOTE>
+  {return s;}
+}
+
+void text() :
+{
+  String s = "";
+}
+{
+  (<TEXT>)
+  s = sentence()
+//  	{System.out.println("successful text"); }
+  {content = s;}
+}
+
+void color() :
+{
+  String s = "";
+}
+{
+  (<COLOR>)
+  s = sentence()
+//  	{System.out.println("successful color"); }
+  {colorStr = s;}
+}
+
+void font() :
+{
+  String s = "";
+}
+{
+  (<FONT>)
+  s = sentence()
+//  	{System.out.println("successful font"); }
+  {fontFamily = s;}
+}
+
+void link() :
+{
+  String s = "";
+}
+{
+  <LINK>
+  s = sentence()
+//  	{System.out.println("successful link"); }
+  {href = s;}
+}
+
+void option() :
+{
+  
+}
+{	text()
+	|
+	color()
+	|
+	font()
+}
+Token decorated_text_extension() :
+{
+  Token t = null;
+}
+{
+   (<AND><WITH>) option()  
+//   	{System.out.println("successful decorated text_extension"); }
+   {return t; }	 
+}
+
+void decorated_text() :
+{
+  int count = 0;
+}
+{
+  <WITH> option()  ( decorated_text_extension()
+		{
+			count++;
+		  	if (count == occurrencesOfAnd)
+				return;
+		}
+  )*
+  
+  
+//  	{System.out.println("successful decorated text"); }
+}
+
+void url_option() :
+{
+}
+{
+  	link()
+ 	| 
+  	text()
+ 	|
+ 	color()
+ 	|
+ 	font()
+}
+
+Token decorated_url_extension() :
+{
+ 	Token t = null;
+}
+{
+  <AND><WITH> url_option()
+  {return t;}
+}
+
+void decorated_url() :
+{
+   int count = 0;
+}
+{
+  	<WITH> url_option() (decorated_url_extension()
+		{
+			count++;
+		  	if (count == occurrencesOfAnd)
+			return;
+		}
+  )*
+//  	{System.out.println("successful decorated url"); }	 
+}
+
+void img() :
+{
+  String s = "";
+}
+{
+//  	{System.out.println("successful img"); }
+ 	<IMAGE><WITH><SOURCE>
+ 	s = sentence()
+ 	{
+ 	   src = s;
+ 	}
+}
+
+void header() :
+{
+}
+{
+//  	{System.out.println("successful header"); }
+  	<HEADING> decorated_text()
+}
+
+void paragraph() :
+{
+}
+{
+//  	{System.out.println("successful paragraph"); }
+  <PARAGRAPH> decorated_text()
+}
+
+void url() :
+{
+}
+{
+//  {System.out.println("successful url"); }
+   <LINK> decorated_url()
+}
+
+  
